@@ -2,7 +2,8 @@
 
 export const schemaOrgHelpers = {
     getAll: fetchSchemaGraph,
-    get: getSchemaProperties
+    getProperties: getSchemaProperties,
+    getPropertyTypes: getPropertyTypes
 }
 
 let schemaGraphCache = null;
@@ -65,4 +66,32 @@ async function getSchemaProperties(className) {
 
     // Return the properties as a sorted array
     return Array.from(properties).sort();
+}
+
+
+async function getPropertyTypes(propertyName) {
+    const graph = await fetchSchemaGraph();
+
+    // Find the property definition in the graph by its label
+    const propertyDefinition = graph.find(node => node['@type'] === 'rdf:Property' && node['rdfs:label'] === propertyName);
+
+    if (!propertyDefinition) {
+        throw new Error(`Property "${propertyName}" not found in the Schema.org vocabulary.`);
+    }
+
+    const types = new Set();
+    if (propertyDefinition['schema:rangeIncludes']) {
+        const ranges = Array.isArray(propertyDefinition['schema:rangeIncludes']) ? propertyDefinition['schema:rangeIncludes'] : [propertyDefinition['schema:rangeIncludes']];
+        ranges.forEach(range => {
+            // Clean up the type name by removing the 'schema:' prefix
+            types.add(range['@id'].replace('schema:', ''));
+        });
+    }
+
+    if (types.size === 0) {
+         return ["No specific types found. This property might be used for literal values or is pending definition."];
+    }
+
+    // Return the types as a sorted array
+    return Array.from(types).sort();
 }
